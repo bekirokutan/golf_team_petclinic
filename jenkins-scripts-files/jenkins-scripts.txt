@@ -61,3 +61,26 @@ ansible -i ./ansible/inventory/dev_stack_dynamic_inventory_aws_ec2.yaml all -m p
 
 ---
 
+APP_NAME="Petclinic"
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+PATH="$PATH:/usr/local/bin"
+export ANSIBLE_PRIVATE_KEY_FILE="${WORKSPACE}/${ANS_KEYPAIR}"
+export ANSIBLE_HOST_KEY_CHECKING=False
+# k8s setup
+ansible-playbook -i ./ansible/inventory/dev_stack_dynamic_inventory_aws_ec2.yaml ./ansible/playbooks/k8s_setup.yaml
+
+---
+
+cd infrastructure/dev-k8s-terraform
+terraform destroy -auto-approve -no-color
+
+---
+
+PATH="$PATH:/usr/local/bin"
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+AWS_REGION="us-east-1"
+aws ec2 delete-key-pair --region ${AWS_REGION} --key-name ${ANS_KEYPAIR}
+rm -rf ${ANS_KEYPAIR}
+
+---
+
