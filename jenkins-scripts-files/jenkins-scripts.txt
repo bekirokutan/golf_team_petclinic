@@ -1,0 +1,86 @@
+echo $PATH
+whoami
+PATH="$PATH:/usr/local/bin"
+python3 --version
+pip3 --version
+ansible --version
+aws --version
+terraform --version
+
+----
+
+
+PATH="$PATH:/usr/local/bin"
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+AWS_REGION="us-east-1"
+aws ec2 create-key-pair --region ${AWS_REGION} --key-name ${ANS_KEYPAIR} --query "KeyMaterial" --output text > ${ANS_KEYPAIR}
+chmod 400 ${ANS_KEYPAIR}
+
+---
+
+PATH="$PATH:/usr/local/bin"
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+AWS_REGION="us-east-1"
+cd infrastructure/dev-k8s-terraform
+sed -i "s/clarus/$ANS_KEYPAIR/g" main.tf
+terraform init
+terraform apply -auto-approve -no-color
+
+---
+
+
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no -i ${WORKSPACE}/${ANS_KEYPAIR} ubuntu@172.31.91.243 hostname
+
+---
+
+PATH="$PATH:/usr/local/bin"
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+export ANSIBLE_INVENTORY="${WORKSPACE}/ansible/inventory/hosts.ini"
+export ANSIBLE_PRIVATE_KEY_FILE="${WORKSPACE}/${ANS_KEYPAIR}"
+export ANSIBLE_HOST_KEY_CHECKING=False
+ansible all -m ping
+
+---
+
+APP_NAME="Petclinic"
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+PATH="$PATH:/usr/local/bin"
+export ANSIBLE_PRIVATE_KEY_FILE="${WORKSPACE}/${ANS_KEYPAIR}"
+export ANSIBLE_HOST_KEY_CHECKING=False
+ansible-inventory -v -i ./ansible/inventory/dev_stack_dynamic_inventory_aws_ec2.yaml --graph
+
+---
+
+APP_NAME="Petclinic"
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+PATH="$PATH:/usr/local/bin"
+export ANSIBLE_PRIVATE_KEY_FILE="${WORKSPACE}/${ANS_KEYPAIR}"
+export ANSIBLE_HOST_KEY_CHECKING=False
+ansible -i ./ansible/inventory/dev_stack_dynamic_inventory_aws_ec2.yaml all -m ping
+
+---
+
+APP_NAME="Petclinic"
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+PATH="$PATH:/usr/local/bin"
+export ANSIBLE_PRIVATE_KEY_FILE="${WORKSPACE}/${ANS_KEYPAIR}"
+export ANSIBLE_HOST_KEY_CHECKING=False
+# k8s setup
+ansible-playbook -i ./ansible/inventory/dev_stack_dynamic_inventory_aws_ec2.yaml ./ansible/playbooks/k8s_setup.yaml
+
+---
+
+cd infrastructure/dev-k8s-terraform
+terraform destroy -auto-approve -no-color
+
+---
+
+PATH="$PATH:/usr/local/bin"
+ANS_KEYPAIR="petclinic-ansible-test-dev.key"
+AWS_REGION="us-east-1"
+aws ec2 delete-key-pair --region ${AWS_REGION} --key-name ${ANS_KEYPAIR}
+rm -rf ${ANS_KEYPAIR}
+
+---
+
